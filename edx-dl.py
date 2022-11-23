@@ -18,7 +18,7 @@ from selenium.webdriver.support.expected_conditions import presence_of_element_l
 
 
 def _download_cmd(url, output=None):
-    cmd = '/home/linuxbrew/.linuxbrew/bin/aria2c --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15" '
+    cmd = '/opt/homebrew/bin/aria2c --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15" '
     if output is not None:
         cmd += ' --out="{output}" '.format(output=output)
 
@@ -31,7 +31,7 @@ def _download_cmd(url, output=None):
 
 def _download_youtube(url):
     # todo: how to avoid this
-    cmd = "/home/linuxbrew/.linuxbrew/bin/youtube-dl {url}".format(url=url)
+    cmd = "/opt/homebrew/bin/youtube-dl {url}".format(url=url)
     os.system(cmd)
     time.sleep(16)
 
@@ -55,12 +55,12 @@ class EdxCourse(object):
 
         options = webdriver.ChromeOptions()
 
-        # options.add_argument('--headless')
+        options.add_argument('--headless')
         options.add_argument('--start-maximized')
 
         prefs = {
             "download.default_directory": work_dir,
-             "directory_upgrade": True
+            "directory_upgrade": True
         }
 
         options.add_experimental_option("prefs", prefs)
@@ -97,6 +97,7 @@ class EdxCourse(object):
         os.chdir(root_dir)
 
     def __call__(self):
+        # gets all the links to courses
         units = self._parse_course()
 
         for unit_title, sub_units in units.items():
@@ -207,7 +208,7 @@ class EdxCourse(object):
 
                 try:
                     a = li.find_element(By.TAG_NAME, "a")
-                    title = a.text                 # must have some title
+                    title = a.text  # must have some title
                     url = a.get_attribute("href")
 
                     if unit_name in units:
@@ -225,8 +226,8 @@ class EdxCourse(object):
 
     def _parse_unit(self, title, url):
         assets = []
-        if "discussion" in title:
-            return assets
+        # if "discussion" in title:
+        #     return assets
 
         self._goto(url)
         _ = self.wait.until(
@@ -248,65 +249,64 @@ class EdxCourse(object):
 
             tab_type = button.find_element(By.TAG_NAME, "svg").get_attribute("data-icon")
 
-            if tab_type == "video":
+            # videos
+            _ = self.wait.until(
+                presence_of_element_located((By.ID, "unit-iframe")))
 
-                # videos
-                _ = self.wait.until(
-                    presence_of_element_located((By.ID, "unit-iframe")))
+            self.driver.switch_to.frame("unit-iframe")
 
+            try:
+                video = self.driver.find_element(By.CLASS_NAME, "video-download-button")
+                url = video.get_attribute("href")
+
+                note = self.driver.find_element(By.TAG_NAME, "h3").text
+                assets.append(("video", url, note))
+
+            except Exception as e:
+                logging.info(e)
+
+                video = self.driver.find_element(By.CLASS_NAME, "video")  # ?
+                meta = json.loads(video.get_attribute("data-metadata"))
+
+                url = meta["streams"].split(":")[-1]
+
+                note = self.driver.find_element(By.TAG_NAME, "h3").text
+
+                assets.append(("youtube", url, note))
+
+            self.driver.switch_to.parent_frame()
+
+            # text,pdfs and general questions else clause for text
+            _ = self.wait.until(
+                presence_of_element_located((By.ID, "unit-iframe")))
+
+            unit = self.driver.find_element(By.CLASS_NAME, "unit-container")
+            png = unit.screenshot_as_png
+            note = self.driver.find_element(By.TAG_NAME, "h1").text
+
+            if "Slides for" in note:
                 self.driver.switch_to.frame("unit-iframe")
 
-                try:
-                    video = self.driver.find_element(By.CLASS_NAME, "video-download-button")
-                    url = video.get_attribute("href")
+                url = self.driver.find_element(
+                    By.PARTIAL_LINK_TEXT,
+                    "Slides for"
+                ).get_attribute("href")
 
-                    note = self.driver.find_element(By.TAG_NAME,"h3").text
-                    assets.append(("video", url, note))
-
-                except Exception as e:
-                    logging.info(e)
-
-                    video = self.driver.find_element(By.CLASS_NAME, "video")  # ?
-                    meta = json.loads(video.get_attribute("data-metadata"))
-
-                    url = meta["streams"].split(":")[-1]
-
-                    note = self.driver.find_element(By.TAG_NAME, "h3").text
-
-                    assets.append(("youtube", url, note))
-
-                self.driver.switch_to.parent_frame()
+                assets.append(("pdf", url))
             else:
-                # text
-                _ = self.wait.until(
-                    presence_of_element_located((By.ID, "unit-iframe")))
+                assets.append(("png", png, note))
 
-                unit = self.driver.find_element(By.CLASS_NAME, "unit-container")
-                png = unit.screenshot_as_png
-                note = self.driver.find_element(By.TAG_NAME, "h1").text
-
-                if "Slides for" in note:
-                    self.driver.switch_to.frame("unit-iframe")
-
-                    url = self.driver.find_element(
-                        By.PARTIAL_LINK_TEXT,
-                        "Slides for"
-                    ).get_attribute("href")
-
-                    assets.append(("pdf", url))
-                else:
-                    assets.append(("png", png, note))
         return assets
 
 
-def run(): 
+def run():
     # run() used to take click cli args
     with open('settings.yaml', 'r') as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
         # print(data)
-    
+
         course = EdxCourse(data["user"], data["psw"], data["course"])
-        
+
         # crawal
         course()
 
