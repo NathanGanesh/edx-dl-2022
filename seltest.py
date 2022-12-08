@@ -1,30 +1,42 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-
-url = 'https://stackoverflow.com/'
-path = 'test/scrape.png'
+from Screenshot import Screenshot
+#
+# url = 'https://stackoverflow.com/'
+# path = 'test/scrape.png'
 options = webdriver.ChromeOptions()
 
 # options.add_argument('--headless')
 options.add_argument('--start-maximized')
-
-prefs = {
-    "download.default_directory": "",
-    "directory_upgrade": True
-}
-
-
-
-URL = 'https://learning.edx.org/course/course-v1:MITx+15.415.1x+3T2022/block-v1:MITx+15.415.1x+3T2022+type@sequential+block@3de881daa7bd4cd49fad4259f59874f0/block-v1:MITx+15.415.1x+3T2022+type@vertical+block@94d0701b2b6446dcbeda2148664e3fd9'
-
+#
+# prefs = {
+#     "download.default_directory": "",
+#     "directory_upgrade": True
+# }
+#
+#
+#
+# URL = 'http://www.w3schools.com/js/default.asp'
+#
 options = webdriver.ChromeOptions()
 options.headless = False
-
+#
 driver = webdriver.Chrome(service=Service("./bin/chromedriver"), options=options)
-driver.get(URL)
+# driver.get(URL)
+# ob = Screenshot_Clipping.Screenshot()
+# img = ob.full_Screenshot(driver, save_path=r'D:/OneDrive -Libin/Python/Sel_python/Pytest/Screenshots',
+#                          image_name="Screenshot1.png")
+#
+# driver.quit()
 
-S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
-driver.set_window_size(S('Width'),S('Height')) # May need manual adjustment
-driver.find_element_by_tag_name('body').screenshot('web_screenshot2.png')
+
+
+ob = Screenshot.Screenshot()
+# driver = webdriver.Chrome()
+url = "https://github.com/sam4u3/Selenium_Screenshot/tree/master/test"
+driver.get(url)
+img_url = ob.full_Screenshot(driver, save_path=r'.', image_name='Myimage.png')
+print(img_url)
+driver.close()
 
 driver.quit()

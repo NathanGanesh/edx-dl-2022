@@ -3,10 +3,10 @@ import time
 from collections import OrderedDict
 import os
 import yaml
-
 import json
 
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 
 from selenium.webdriver.chrome.service import Service
 
@@ -16,6 +16,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.expected_conditions import presence_of_element_located
 
+from Screenshot import Screenshot
+# from Screenshot import Screenshot_Clipping
 
 def _download_cmd(url, output=None):
     cmd = '/opt/homebrew/bin/aria2c --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15" '
@@ -23,7 +25,7 @@ def _download_cmd(url, output=None):
         cmd += ' --out="{output}" '.format(output=output)
 
     cmd += " " + url
-    print(cmd)
+    # print(cmd)
     # cli
     os.system(cmd)
     time.sleep(2)
@@ -55,7 +57,7 @@ class EdxCourse(object):
 
         options = webdriver.ChromeOptions()
 
-        options.add_argument('--headless')
+        # options.add_argument('--headless')
         options.add_argument('--start-maximized')
 
         prefs = {
@@ -99,6 +101,7 @@ class EdxCourse(object):
     def __call__(self):
         # gets all the links to courses
         units = self._parse_course()
+        ob = Screenshot.Screenshot()
 
         for unit_title, sub_units in units.items():
             unit_title = format_title(unit_title)
@@ -119,9 +122,9 @@ class EdxCourse(object):
                 for j, item in enumerate(assets):
                     mkdir(str(j))
                     os.chdir(str(j))
-
+                    print(url, "goblin123")
                     if item[0] == "pdf":
-                        output_path = os.path.join(base_path, "slides.pdf")
+                        output_path = os.path.join(base_path, item[2]+".pdf")
                         _download_cmd(item[1], str(output_path))
 
                     elif item[0] == "video":
@@ -133,10 +136,19 @@ class EdxCourse(object):
                         _download_youtube(item[1])
 
                     elif item[0] == "png":
-                        with open(item[2] + ".png", "wb") as fo:
-                            fo.write(item[1])
-                    else:
-                        print(f"Unexpected: {item[1]}")
+                        self.driver.get(url)
+                        time.sleep(2)
+                        _ = self.wait.until(
+                            presence_of_element_located((By.ID, "unit-iframe")))
+                        elementFrame = self.driver.switch_to.frame("unit-iframe")
+
+                        img_url = ob.full_Screenshot(self.driver, elementFrame=elementFrame, save_path=r'.', image_name=item[2]+'.png')
+
+                        # with open(item[2] + ".png", "wb") as fo:
+                        #     fo.write(item[1])
+                    # else:
+
+                        # print(f"Unexpected: {item[1]}")
 
                     # todo: if none, we snapshot the page
                     #  e.g. exam
@@ -205,7 +217,6 @@ class EdxCourse(object):
             lis = ol.find_elements(By.TAG_NAME, "li")
 
             for li in lis:
-
                 try:
                     a = li.find_element(By.TAG_NAME, "a")
                     title = a.text  # must have some title
@@ -228,6 +239,8 @@ class EdxCourse(object):
         assets = []
         # if "discussion" in title:
         #     return assets
+
+        ob = Screenshot.Screenshot()
 
         self._goto(url)
         _ = self.wait.until(
@@ -256,23 +269,29 @@ class EdxCourse(object):
             self.driver.switch_to.frame("unit-iframe")
 
             try:
-                video = self.driver.find_element(By.CLASS_NAME, "video-download-button")
-                url = video.get_attribute("href")
+                if self.driver.find_element(By.CLASS_NAME, "video-download-button"):
+                    video = self.driver.find_element(By.CLASS_NAME, "video-download-button")
+                    videoUrl = video.get_attribute("href")
+                    note = self.driver.find_element(By.TAG_NAME, "h3").text
+                    assets.append(("video", videoUrl, note))
+            except NoSuchElementException as e:
+                    print("error")
 
-                note = self.driver.find_element(By.TAG_NAME, "h3").text
-                assets.append(("video", url, note))
 
-            except Exception as e:
-                logging.info(e)
 
-                video = self.driver.find_element(By.CLASS_NAME, "video")  # ?
-                meta = json.loads(video.get_attribute("data-metadata"))
-
-                url = meta["streams"].split(":")[-1]
-
-                note = self.driver.find_element(By.TAG_NAME, "h3").text
-
-                assets.append(("youtube", url, note))
+            # try:
+            #     if self.driver.find_element(By.CLASS_NAME, "video"):
+            #
+            #         video = self.driver.find_element(By.CLASS_NAME, "video")  # ?
+            #         meta = json.loads(video.get_attribute("data-metadata"))
+            #
+            #         url = meta["streams"].split(":")[-1]
+            #
+            #         note = self.driver.find_element(By.TAG_NAME, "h3").text
+            #
+            #         assets.append(("youtube", url, note))
+            # except NoSuchElementException as e:
+            #     logging.log(e)
 
             self.driver.switch_to.parent_frame()
 
@@ -280,9 +299,31 @@ class EdxCourse(object):
             _ = self.wait.until(
                 presence_of_element_located((By.ID, "unit-iframe")))
 
-            unit = self.driver.find_element(By.CLASS_NAME, "unit-container")
-            png = unit.screenshot_as_png
+            # self.driver.get(url)
+
+            # unit = self.driver.find_element(By.CLASS_NAME, "unit-container")
+            # png = unit.screenshot_as_png
             note = self.driver.find_element(By.TAG_NAME, "h1").text
+            # img_url = ob.full_Screenshot(self.driver, save_path=r'.', image_name=note)
+            assets.append(("png", self.driver.current_url, note))
+            # scroll_width = self.driver.execute_script('return document.body.parentNode.scrollWidth')
+            # scroll_height = self.driver.execute_script('return document.body.parentNode.scrollHeight')
+            # self.driver.set_window_size(scroll_width, scroll_height)
+            # self.driver.save_full_page_screenshot(note)
+            if "Content and Handouts" in note:
+                self.driver.switch_to.frame("unit-iframe")
+                url1 = self.driver.find_element(
+                    By.PARTIAL_LINK_TEXT,
+                    " Lecture slides are available here "
+                ).get_attribute("href")
+                assets.append(("pdf", url1, "lectureslides"))
+                # // *[ @ id = "main"] / div[2] / div / div[2] / div / p[2]
+                # /html/body/div[4]/div/section/main/div[2]/div/div[2]/div/p[2]
+                url2 = self.driver.find_element(
+                    By.PARTIAL_LINK_TEXT,
+                " Recitation slides are available here "
+                ).get_attribute("href")
+                assets.append(("pdf", url2, "recitationslides"))
 
             if "Slides for" in note:
                 self.driver.switch_to.frame("unit-iframe")
@@ -293,8 +334,8 @@ class EdxCourse(object):
                 ).get_attribute("href")
 
                 assets.append(("pdf", url))
-            else:
-                assets.append(("png", png, note))
+            # else:
+                # assets.append(("png", png, note))
 
         return assets
 
@@ -313,3 +354,6 @@ def run():
 
 if __name__ == "__main__":
     run()
+
+# except assertionerror
+# assert "full name1" in el.txt
