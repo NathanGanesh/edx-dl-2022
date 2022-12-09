@@ -101,7 +101,6 @@ class EdxCourse(object):
     def __call__(self):
         # gets all the links to courses
         units = self._parse_course()
-        ob = Screenshot.Screenshot()
 
         for unit_title, sub_units in units.items():
             unit_title = format_title(unit_title)
@@ -122,7 +121,6 @@ class EdxCourse(object):
                 for j, item in enumerate(assets):
                     mkdir(str(j))
                     os.chdir(str(j))
-                    print(url, "goblin123")
                     if item[0] == "pdf":
                         output_path = os.path.join(base_path, item[2]+".pdf")
                         _download_cmd(item[1], str(output_path))
@@ -135,14 +133,15 @@ class EdxCourse(object):
                     elif item[0] == "youtube":
                         _download_youtube(item[1])
 
-                    elif item[0] == "png":
-                        self.driver.get(url)
-                        time.sleep(2)
-                        _ = self.wait.until(
-                            presence_of_element_located((By.ID, "unit-iframe")))
-                        elementFrame = self.driver.switch_to.frame("unit-iframe")
-
-                        img_url = ob.full_Screenshot(self.driver, elementFrame=elementFrame, save_path=r'.', image_name=item[2]+'.png')
+                    # elif item[0] == "png":
+                    #     self._goto(url)
+                    #     _ = self.wait.until(
+                    #         presence_of_element_located((By.ID, "unit-iframe")))
+                    #
+                    #     time.sleep(5)
+                    #     elementFrame2 = self.driver.find_element("unit-iframe")
+                    #
+                    #     img_url = ob.full_Screenshot(self.driver, elementFrame=elementFrame2, save_path=r'.', image_name=item[2]+'.png')
 
                         # with open(item[2] + ".png", "wb") as fo:
                         #     fo.write(item[1])
@@ -266,6 +265,8 @@ class EdxCourse(object):
             _ = self.wait.until(
                 presence_of_element_located((By.ID, "unit-iframe")))
 
+
+
             self.driver.switch_to.frame("unit-iframe")
 
             try:
@@ -304,26 +305,41 @@ class EdxCourse(object):
             # unit = self.driver.find_element(By.CLASS_NAME, "unit-container")
             # png = unit.screenshot_as_png
             note = self.driver.find_element(By.TAG_NAME, "h1").text
+            iframe = self.driver.find_element(By.TAG_NAME, "h1").text
             # img_url = ob.full_Screenshot(self.driver, save_path=r'.', image_name=note)
-            assets.append(("png", self.driver.current_url, note))
+            # assets.append(("png", self.driver.current_url, note))
+            tabs2 = self.driver.find_element(By.CLASS_NAME, "unit-iframe-wrapper")
+
+            img_url = ob.get_element(self.driver, element=tabs2, save_location=r'.',
+                                         image_name=note + '.png')
+
             # scroll_width = self.driver.execute_script('return document.body.parentNode.scrollWidth')
             # scroll_height = self.driver.execute_script('return document.body.parentNode.scrollHeight')
             # self.driver.set_window_size(scroll_width, scroll_height)
             # self.driver.save_full_page_screenshot(note)
             if "Content and Handouts" in note:
                 self.driver.switch_to.frame("unit-iframe")
-                url1 = self.driver.find_element(
-                    By.PARTIAL_LINK_TEXT,
-                    " Lecture slides are available here "
-                ).get_attribute("href")
-                assets.append(("pdf", url1, "lectureslides"))
-                # // *[ @ id = "main"] / div[2] / div / div[2] / div / p[2]
-                # /html/body/div[4]/div/section/main/div[2]/div/div[2]/div/p[2]
-                url2 = self.driver.find_element(
-                    By.PARTIAL_LINK_TEXT,
-                " Recitation slides are available here "
-                ).get_attribute("href")
-                assets.append(("pdf", url2, "recitationslides"))
+                urls = self.driver.find_elements(By.PARTIAL_LINK_TEXT, "here")
+                a = ["slides", "recitation"]
+                for i in range(len(urls)):
+                    pdf1 = urls[i].get_attribute("href")
+                    assets.append(("pdf", pdf1, a[i]))
+
+                # for url in urls:
+                #     pdf1 = url.get_attribute("href")
+                #     assets.append(("pdf", pdf1, ))
+                # url1 = self.driver.find_element(
+                #     By.PARTIAL_LINK_TEXT,
+                #     " Lecture slides are available "
+                # ).get_attribute("href")
+                # assets.append(("pdf", url1, "lectureslides"))
+                # # // *[ @ id = "main"] / div[2] / div / div[2] / div / p[2]
+                # # /html/body/div[4]/div/section/main/div[2]/div/div[2]/div/p[2]
+                # url2 = self.driver.find_element(
+                #     By.PARTIAL_LINK_TEXT,
+                # " Recitation slides are available "
+                # ).get_attribute("href")
+                # assets.append(("pdf", url2, "recitationslides"))
 
             if "Slides for" in note:
                 self.driver.switch_to.frame("unit-iframe")
