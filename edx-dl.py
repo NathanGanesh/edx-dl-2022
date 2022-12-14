@@ -265,8 +265,6 @@ class EdxCourse(object):
             _ = self.wait.until(
                 presence_of_element_located((By.ID, "unit-iframe")))
 
-
-
             self.driver.switch_to.frame("unit-iframe")
 
             try:
@@ -308,10 +306,14 @@ class EdxCourse(object):
             iframe = self.driver.find_element(By.TAG_NAME, "h1").text
             # img_url = ob.full_Screenshot(self.driver, save_path=r'.', image_name=note)
             # assets.append(("png", self.driver.current_url, note))
-            tabs2 = self.driver.find_element(By.CLASS_NAME, "unit-iframe-wrapper")
+            _ = self.wait.until(
+                presence_of_element_located((By.CLASS_NAME, "unit-container")))
+            tabs2 = self.driver.find_element(By.CLASS_NAME, "unit-container")
 
+            note2 = format_title(note).replace("/", "")
+            time.sleep(5)
             img_url = ob.get_element(self.driver, element=tabs2, save_location=r'.',
-                                         image_name=note + '.png')
+                                         image_name=note2)
 
             # scroll_width = self.driver.execute_script('return document.body.parentNode.scrollWidth')
             # scroll_height = self.driver.execute_script('return document.body.parentNode.scrollHeight')
